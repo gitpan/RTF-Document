@@ -3,6 +3,29 @@ Revision history for Perl extension RTF::Document.
 Note that very important changes which affect compatability with previous
 versions are marked with an asterisk ('*').
 
+0.61  Wed Sep 22 03:24:02 1999
+       * Units::Type has been renamed to Convert::Units::Type
+       - Information Group is built after initializing document format:
+         this allows multiple calls to rtf() method
+       - Style Sheet Table is built as new styles are added
+       - further rewriting, so that all tables are groups within the
+         root document: THIS MIGHT INTRODUCE BUGS WITH SOME VIEWERS,
+         though technically it should be no problem according to the
+         RTF specification
+       - added ability to define a default color (although most RTF
+         readers will not use it)
+       - added splice_raw() method for inserting or changing controls
+         and text
+       - changed wording or warnings; other minor changes in code,
+         including cleaning up a few warnings
+       - code in escape_text fixed so that trailing spaces not added to
+         escapes prior to other controls or end of line
+       - split_text() added as a wrapper for escape_text() - this is
+         to separate the text from controls and make parsing easier
+       - PCDATA (string) arguments in properties are now escaped
+       - Added SYNOPSIS section to POD
+
+
 0.6   Mon Sep 20 01:09:36 1999
        * changed text() to add_text(), since it now requires a special
          group argument that specifies where text is to be added; usually
@@ -12,7 +35,7 @@ versions are marked with an asterisk ('*').
        - added ability to add groups with add_group() method
        - the "root" of the document is available using root()
        - rewrote the internals heavily to make grouping more flexible
-       * separated document properties from section/paagraph/character
+       * separated document properties from section/paragraph/character
          properties: document properties can only be specified when
          constructing a new RTF document
 

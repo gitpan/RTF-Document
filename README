@@ -12,216 +12,41 @@ DESCRIPTION
     The interface is not yet documented, although the example below
     will demonstrate how to use this module.
 
-    For a listing of properties, consult the %PROPERTIES hash in the
-    source code.
-
 REQUIRED MODULES
 
         Carp
         POSIX
-        Units::Type 0.32
+        Convert::Units::Type 0.33
 
-    Units::Type is part of the Units package.
+CHANGES IN THIS RELEASE
 
-EXAMPLE
-
-        use RTF::Document;
-
-        # Document properties
-
-        $rtf = new RTF::Document(
-          {
-            doc_page_width => '8.5in',
-            doc_page_height => '11in'
-          }
-        );
-
-        # Font definitions
-
-        $fAvantGarde = $rtf->add_font ("AvantGarde", 
-           { family=>swiss,
-             default=>1
-           } );
-        $fCourier = $rtf->add_font ("Courier",
-          { family=>monospace, pitch=>fixed, 
-            alternates=>["Courier New", "American Typewriter"] 
-          } );
-
-        # Color definitions
-
-        $cRed   = $rtf->add_color ( { red=>255 } );
-        $cGreen = $rtf->add_color ( { green=>128 } );
-        $cCustm = $rtf->add_color ( { red=>0x66, blue=>0x33, green=>0x33 } );
-
-        $cBlack = $rtf->add_color ( { name=>'black' } );
-        $cWhite = $rtf->add_color ( { gray=>'100%' } );
-
-        $cNavy = $rtf->add_color ( { blue=>'100%', gray=>'50%' } );
-
-        # style definitions
-
-        $sNormal = $rtf->add_style( "Normal",
-          { font=>$fAvantGarde, font_size=>'12pt',
-            color_foreground=>$cBlack },
-          { type=>paragraph, default=>1 }
-        );
-
-        $sGreen = $rtf->add_style( "Green",
-          { color_foreground=>$cGreen },
-          { type=>character, additive=>1 }
-        );
-
-        # Mix any combo of properties and text...
-
-        $rtf->add_text( $rtf->root(),
-           "Default text\n\n",
-
-           { bold=>1, underline=>dash },
-           "Bold/Underlined Text\n\n",
-
-           { font_size=>'20pt', font=>$fCourier,
-             color_foreground=>$cRed },
-           "Bigger, Red and Monospaced.\n\n",
-
-           { style_default=>paragraph, style_default=>character },
-
-           "This is ",
-           [ { style=>$sGreen }, "green" ],
-           " styled.\n\n"
-
-        );
-
-        open FILE, ">MyFile.rtf";
-        binmode FILE;
-        print FILE $rtf->rtf();
-        close FILE;
+    * Units::Type has been renamed to Convert::Units::Type
+    - Information Group is built after initializing document format:
+      this allows multiple calls to rtf() method
+    - Style Sheet Table is built as new styles are added
+    - further rewriting, so that all tables are groups within the
+      root document: THIS MIGHT INTRODUCE BUGS WITH SOME VIEWERS,
+      though technically it should be no problem according to the
+      RTF specification
+    - added ability to define a default color (although most RTF
+      readers will not use it)
+    - added splice_raw() method for inserting or changing controls
+      and text
+    - changed wording or warnings; other minor changes in code,
+      including cleaning up a few warnings
+    - code in escape_text fixed so that trailing spaces not added to
+      escapes prior to other controls or end of line
+    - split_text() added as a wrapper for escape_text() - this is
+      to separate the text from controls and make parsing easier
+    - PCDATA (string) arguments in properties are now escaped
+    - Added SYNOPSIS section to POD
 
 KNOWN ISSUES
 
     This module should be considered in the "alpha" stage. Use at
     your own risk.
 
-    There are no default document or style properties produced by
-    this module, with the exception of the character set. If you
-    want to make sure that a specific font, color, or style is
-    available, you must specify it. (You may be able to rely on
-    default properties documented in the RTF specification, but you
-    do so at the risk that an RTF viewer will assume different
-    defaults.)
-
-    This module does not insert newlines anywhere in the text, even
-    though some RTF writers break lines before they exceed 225
-    characters. This may or may not be an issue with some reader
-    software.
-
-    Unknown text or document properties will return a warning.
-    Attempting to define a "global" document property (for example,
-    defining the paper size) within the text will also produce a
-    warning but the code will be emitted in place anyway. This
-    "feature" may change in a future version.
-
-    Unknown font or style properties will generally be ignored
-    without warning. Inappropriate properties for a specific font or
-    style are also ignored.
-
-    Potentially invalid names for fonts and styles are ignored.
-    (Hint: don't use tabs, newlines, backslashes, brackets, or other
-    control characters in these.)
-
-    Colors can be created by naming them, for instance,
-
-        $cBlue = $rtf->add_color( { name => blue } );
-
-    Note that the names and associated RGB codes come from the W3C's
-    HTML4 specification. Microsoft uses the same RGB color values
-    for defaults in word, although they have different names. (The
-    only conflict is with the definition of "green".) Future
-    versions will incorporate separate module which recognizes
-    common names and returns appropriate RGB values.
-
-    Fonts, Colors and Styles are referenced in text and style
-    properties using the returned values when they are added, and
-    *not* by names associated with them. This is intentional, since
-    it makes the interface more object-oriented.
-
-    Once a Font, Color or Style is added, it cannot be changed. No
-    checking for redundant entries is done.
-
-    Generally, it is not possible to reference a not-yet-created
-    Style with the next or basedon attributes. However, you can use
-    the constances "last", "self" or "next" to reference the last
-    style added, the current style being added, or the next style
-    that will be added, respectively.
-
-    Properties are *write-only* (global properties should be
-    considered *write-once* as well).
-
-    Specifying properties in a particular order within a group does
-    not guarantee that they will be emitted in that order. If order
-    matters, specify them separetly. For instance,
-
-        $rtf->add_text($rtf->root, { style_default=>character, bold=>1 } );
-
-    should be (if you want to ensure character styles are reset
-    before setting bold text):
-
-        $rtf->add_text($rtf->root, { style_default=>character }, { bold=>1 } );
-
-  Unimplemented Features
-
-    A rather large number of features and control words are not
-    handled in this version. Among the major features:
-
-    * Annotations and Comments
-    * Bookmarks
-    * Bullets and Line Numbering
-    * Character Sets and Internationalization
-
-        Non-"ANSI" character sets (i.e., Macintosh) and Unicode
-        character sets are not supported (at least not
-        intentionally). There is no support for Asian character sets
-        in this version of the module.
-
-        Unicode character escapes are not implemented.
-
-        Language codes (defining a default language, or a language
-        for a group of characters) are not implemented.
-
-        Bi-directional and text-flow controls are not implemented.
-
-    * Embedded Images and OLE Objects
-    * File Tables
-    * Footnotes and Endnotes
-    * Forms
-    * Headers and Footers
-    * Hyphenation Control
-    * Lists and List Tables
-    * Page Numbering
-
-        Minimal definition, untested.
-
-    * Printer Bin Controls
-    * Revision Tables
-    * Special Characters and Document Variables
-
-        Most special characters not not implemented, with the
-        exception of tabs. Double newline characters are converted
-        to a new paragraph control, and single newlines are
-        converted to a new line control.
-
-    * Tabs
-
-        Default tabs can be set. That's all.
-
-    * Tables and Frames
-
-SEE ALSO
-
-    Microsoft Technical Support and Application Note, "Rich Text
-    Format (RTF) Specification and Sample Reader Program", Version
-    1.5.
-
-    Units::Type
+    Please see the POD in Document.pm for more information.
 
 AUTHOR
 
