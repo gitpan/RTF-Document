@@ -7,14 +7,14 @@ use vars qw(
     %DOCINFO %PROPERTIES
     %FONTCLASSES %FONTPITCH %COLORNAMES %STYLETYPES %NUMSTYLES
 );
-$VERSION = "0.62";
+$VERSION = "0.63";
 
 @ISA = qw(Exporter);
 @EXPORT = qw();
 @EXPORT_OK = qw();
 
 use Carp;
-use POSIX;
+use POSIX qw(floor ceil);
 use Convert::Units::Type 0.33;
 
 %NUMSTYLES = (
@@ -68,11 +68,22 @@ sub _prop_list
        $self->add_raw ($result, '\pncf'.${$properties}{color});
     }
 
-    if (defined(${$properties}{start}))
+    if (defined(${$properties}{before}))
     {
-       $self->add_raw ($result, '\pnstart'.${$properties}{start});
+       my $group = $self->add_group($result);
+       $self->add_raw ($group, '\pntxtb '.escape_simple(${$properties}{before}) );
     }
 
+    if (defined(${$properties}{after}))
+    {
+       my $group = $self->add_group($result);
+       $self->add_raw ($group, '\pntxta '.escape_simple(${$properties}{after}) );
+    }
+
+    if (${$properties}{across})
+    {
+       $self->add_raw ($result, '\pnacross');
+    }
 
     if (defined(${$properties}{indent}))
     {
@@ -93,17 +104,11 @@ sub _prop_list
        $self->add_raw ($result, '\pnhang');
     }
 
-    if (defined(${$properties}{before}))
+    if (defined(${$properties}{start}))
     {
-       my $group = $self->add_group($result);
-       $self->add_raw ($group, '\pntxtb '.escape_simple(${$properties}{before}) );
+       $self->add_raw ($result, '\pnstart'.${$properties}{start});
     }
 
-    if (defined(${$properties}{after}))
-    {
-       my $group = $self->add_group($result);
-       $self->add_raw ($group, '\pntxtb '.escape_simple(${$properties}{after}) );
-    }
 
     return ($result);
 }
@@ -262,6 +267,9 @@ sub _prop_on {
     'doc_view_mode'	=> [ 'text', { 'none'=>'viewkind0', 'layout'=>'viewkind1',
       'outline'=>'viewkind2', 'master'=>'viewkind3',
 
+
+
+
       'normal'=>'viewkind4', 'online'=>'viewkind5'}, 0, \&_prop_decode ],
 
     # --- Character set
@@ -322,7 +330,7 @@ sub _prop_on {
     # --- Style
     'style'		=> [ 'text', 's', 		0, \&_prop_style ],
     'style_default'	=> [ 'text', { 'character'=>'plain', 'paragraph'=>'pard',
-       'section'=>'secd' },  0, \&_prop_decode ],
+        'section'=>'secd', 'row'=>'trowd', 'cell'=>'tcelld' },  0, \&_prop_decode ],
 
     # --- Paragraph spacing
     'par_space_before'	=> [ 'text', 'sb',	0,  \&_prop_twips ],
@@ -776,7 +784,7 @@ sub new_group {
 
 sub add_group {
     my $self = shift;
-    my $section = shift || $self->{text};
+    my $section = shift || $self->root();
     my $group = shift || $self->new_group();
     $self->add_raw ($section, $group);
     return $group;
@@ -900,36 +908,6 @@ in the source code.
     POSIX
     Convert::Units::Type 0.33
 
-=head1 SYNOPSIS
-
-    $rtf = new RTF::Document( \%document_properties );
-
-    $font = $rtf->add_font(
-       "Font Name",
-       \%font_properties
-    );
-
-    $color = $rtf->add_color(
-       \%color_properties
-    );
-
-    $style = $rtf->add_style( 
-        "Style Name",
-        \%text_properties,
-        \%style_properties
-    );
-
-    $group_root = $rtf->root();
-
-    $group = $rtf->add_group();
-    $group = $rtf->add_group( $parent );
-
-    $rtf->add_text(
-        $group,
-        \%text_properties | "Plain Text"
-        ...
-    );
-
 =head1 EXAMPLE
 
     use RTF::Document;
@@ -1003,6 +981,87 @@ in the source code.
     binmode FILE;
     print FILE $rtf->rtf();
     close FILE;
+
+=head1 DOCUMENT STRUCTURE
+
+For purposes of using this module, a Rich Text (RTF) Document can be subdivided into
+I<groups>. Groups can be considered containers for I<text> and I<controls> (controlling
+document and text properties).
+
+For all intents and purposes, a group limits the scope of controls. So if we set
+the "bold" character property within a group, the text will be bold only within
+that group (until it is turned off within that group).
+
+When generating a RTF document using this module, we are only concerned with the
+I<root> group (also called the "Document Area"). (The "Header" groups are taken
+care of automatically by this module.)
+
+The Document Area is subdivided into I<sections>. Each section is subdivided into
+I<paragraphs>.
+
+=head1 METHODS
+
+Some of the methods are documented below. (Methods not documented here may
+be changed in future versions.)
+
+=head2 new
+
+    $rtf = new RTF::Document( \%DocumentProperties );
+
+Creates a new RTF document object.
+
+=head2 root
+
+    $gRoot = $rtf->root();
+
+Returns the "root" group in the RTF document.
+
+=head2 new_group
+
+    $gMyGroup = $rtf->new_group();
+
+Creates a new group (not inside of the RTF document).
+
+=head2 add_group
+
+    $gChildOfRoot = $rtf->add_group();
+    $gChildOfChild = $rtf->add_group( $gChild );
+
+Adds a child group to the specfied group. If no group is specified, the "root"
+group is assumed.
+
+    $rtf->add_group( $rtf->root(), $gMyGroup );
+
+Adds a group to the specified parent group (in this case, the root group).
+
+=head2 add_raw
+
+    $rtf->add_raw( $group, '\par', "Some Text" );
+
+Adds raw controls and text to the group. This method is intended for internal
+use only.
+
+=head2 add_text
+
+    $rtf->add_text( $group, "Some text ", { bold=>1 }, "more text" );
+
+Adds text and controls to a group. Text is escaped.
+
+=head2 add_font
+
+=head2 add_color
+
+=head2 add_style
+
+=head1 PROPERTIES
+
+=head2 Document Properties
+
+=head2 Section Properties
+
+=head2 Paragraph Properties
+
+=head2 Character Properties
 
 =head1 KNOWN ISSUES
 
@@ -1134,7 +1193,4 @@ This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 =cut
-
-
-
 

@@ -3,6 +3,10 @@ Revision history for Perl extension RTF::Document.
 Note that very important changes which affect compatability with previous
 versions are marked with an asterisk ('*').
 
+0.63  N/A
+       - fixed bug with { par_number => { after=>'text' } }
+       - added more document and formatting properties
+
 0.62  Mon Sep 27 08:00:00 1999
        * changed required Perl version to 5.005
        - 8-bit characters are now escaped
