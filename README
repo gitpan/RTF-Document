@@ -43,20 +43,20 @@ EXAMPLE
              default=>1
            } );
         $fCourier = $rtf->add_font ("Courier",
-          { family=>monospace, 
+          { family=>monospace, pitch=>fixed, 
             alternates=>["Courier New", "American Typewriter"] 
           } );
 
         # Color definitions
 
         $cRed   = $rtf->add_color ( { red=>255 } );
-        $cGreen = $rtf->add_color ( { green=>255 } );
-        $cPurpl = $rtf->add_color ( { red=>255, blue=>255 } );
+        $cGreen = $rtf->add_color ( { green=>128 } );
+        $cCustm = $rtf->add_color ( { red=>0x66, blue=>0x33, green=>0x33 } );
 
-        $cBlack = $rtf->add_color ( { gray=>0 } );
-        $cWhite = $rtf->add_color ( { gray=>100 } );
+        $cBlack = $rtf->add_color ( { name=>'black' } );
+        $cWhite = $rtf->add_color ( { gray=>'100%' } );
 
-        $cDkBlue = $rtf->add_color ( { blue=>255, gray=>50 } );
+        $cNavy = $rtf->add_color ( { blue=>'100%', gray=>'50%' } );
 
         # style definitions
 
@@ -73,7 +73,7 @@ EXAMPLE
 
         # Mix any combo of properties and text...
 
-        $rtf->text(
+        $rtf->add_text( $rtf->root(),
            "Default text\n\n",
 
            { bold=>1, underline=>dash },
@@ -125,8 +125,19 @@ KNOWN ISSUES
     style are also ignored.
 
     Potentially invalid names for fonts and styles are ignored.
-    (Don't use tabs, newlines, backslashes, brackets, or other
+    (Hint: don't use tabs, newlines, backslashes, brackets, or other
     control characters in these.)
+
+    Colors can be created by naming them, for instance,
+
+        $cBlue = $rtf->add_color( { name => blue } );
+
+    Note that the names and associated RGB codes come from the W3C's
+    HTML4 specification. Microsoft uses the same RGB color values
+    for defaults in word, although they have different names. (The
+    only conflict is with the definition of "green".) Future
+    versions will incorporate separate module which recognizes
+    common names and returns appropriate RGB values.
 
     Fonts, Colors and Styles are referenced in text and style
     properties using the returned values when they are added, and
@@ -144,6 +155,17 @@ KNOWN ISSUES
 
     Properties are *write-only* (global properties should be
     considered *write-once* as well).
+
+    Specifying properties in a particular order within a group does
+    not guarantee that they will be emitted in that order. If order
+    matters, specify them separetly. For instance,
+
+        $rtf->add_text($rtf->root, { style_default=>character, bold=>1 } );
+
+    should be (if you want to ensure character styles are reset
+    before setting bold text):
+
+        $rtf->add_text($rtf->root, { style_default=>character }, { bold=>1 } );
 
   Unimplemented Features
 
@@ -188,6 +210,9 @@ KNOWN ISSUES
         converted to a new line control.
 
     * Tabs
+
+        Default tabs can be set. That's all.
+
     * Tables and Frames
 
 SEE ALSO
@@ -196,7 +221,7 @@ SEE ALSO
     Format (RTF) Specification and Sample Reader Program", Version
     1.5.
 
-    *Units::Type*.
+    Units::Type
 
 AUTHOR
 

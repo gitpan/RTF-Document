@@ -4,11 +4,12 @@ require Exporter;
 
 use vars qw(
     $VERSION
-    %PROPERTIES
+    %DOCINFO %PROPERTIES
     %FONTCLASSES %FONTPITCH
+    %COLORNAMES
     %STYLETYPES
 );
-$VERSION = "0.5";
+$VERSION = "0.6";
 
 @ISA = qw(Exporter);
 @EXPORT = qw();
@@ -99,7 +100,7 @@ sub _prop_on {
     }
 }
 
-# Synopsis of %PROPERTIES
+# Synopsis of %DOCINFO and %PROPERTIES
 #   property => [ where, control, group, function ]
 #     property = name of the property
 #     where    = what section of the document this control is usually applied to
@@ -112,10 +113,57 @@ sub _prop_on {
 #  col = column properties (within a section)
 #  par = paragraph properties
 
+%DOCINFO = (
+    # --- Document summary information
+    doc_title		=> [ info,  'title', 	1, \&_prop_pcdata ],
+    doc_author	=> [ info,  'author',	1, \&_prop_pcdata ],
+    doc_subject	=> [ info,  'subject',	1, \&_prop_pcdata ],
+    doc_manager	=> [ info,  'manager',	1, \&_prop_pcdata ],
+    doc_company	=> [ info,  'company',	1, \&_prop_pcdata ],
+    doc_operator	=> [ info,  'operator',	1, \&_prop_pcdata ],
+    doc_category	=> [ info,  'category',	1, \&_prop_pcdata ],
+    doc_keywords	=> [ info,  'keywords',	1, \&_prop_pcdata ],
+    doc_summary	=> [ info,  'doccomm',	1, \&_prop_pcdata ],
+    doc_comment	=> [ text,  '*\comment',	1, \&_prop_pcdata ],
+    doc_base_href	=> [ info,  'hlinkbase', 	1, \&_prop_pcdata ],
+    doc_version	=> [ info,  'version',	0, \&_prop_raw  ],
+    doc_time_created	=> [ creatim ],
+
+    doc_from_text	=> [ text,  fromtext,    0, \&_prop_on ],
+    doc_make_backup	=> [ text,  makebackup,  0, \&_prop_on ],
+    doc_rtf_def	=> [ text,  defformat,   0, \&_prop_on ],
+
+    # --- Page sizes, margins, etc.
+    doc_page_width	=> [ text,  paperw,	0, \&_prop_twips ],
+    doc_page_height	=> [ text,  paperh,	0, \&_prop_twips ],
+    doc_landscape	=> [ text,  landscape,	0, \&_prop_on ],
+    doc_facing	=> [ text,  facingp,	0, \&_prop_on ],
+    doc_margin_left	=> [ text,  margl,		0,  \&_prop_twips ],
+    doc_margin_right	=> [ text,  margr,		0, \&_prop_twips ],
+    doc_margin_top	=> [ text,  margt,		0, \&_prop_twips ],
+    doc_margin_bottom => [ text,  margb, 	0, \&_prop_twips ],
+    doc_margin_mirror=> [ text,  margmirror, 	0, \&_prop_on ],
+    doc_gutter	=> [ text,  gutter, 	0, \&_prop_twips ],
+
+    # --- Hyphenation
+    doc_hyphen_auto	=> [ text,  'hyphauto', 0,  \&_prop_onoff ],
+    doc_hyphen_caps	=> [ text,  'hyphcaps', 0,  \&_prop_onoff ],
+
+    # --- Views
+    doc_view_scale	=> [ text,  viewscale,   0, \&_prop_raw  ],
+    doc_view_zoom	=> [ text, { none=>'viewzk0', 'full-page'=>'viewzk1',
+      'best-fit'=>'viewzk1' },  0, \&_prop_decode ],
+    doc_view_caption	=> [ text,  windowcaption, 1, , \&_prop_pcdata ],
+
+    # --- Widow/orphan controls
+    doc_widow_cntrl	=> [ text,  widowctrl,   0, \&_prop_on ],
+
+    # --- Tabs
+    tabs_default	=> [ text,  'deftab', 	0, \&_prop_twips ],
+
+);
+
 %PROPERTIES = (
-    # --- Emit specified controls
-    cntrl		=> [ text,  '',      0, \&_prop_raw ],
-    cntrl_group	=> [ text,  '',      1, \&_prop_raw ],
 
     # --- New section, paragraph, line
     sec		=> [ text, 'sect', 	0, \&_prop_on ],
@@ -134,90 +182,57 @@ sub _prop_on {
     col_space		=> [ text,  'colsx', 	0, \&_prop_twips ],
     col_select	=> [ text,  'colno', 	0, \&_prop_raw ],
     col_padding_right => [ text, 'colsr', 	0, \&_prop_twips ],
-    col_width 	=> [ text,  'colw',  	0, \&_prop_twips ],
-    col_line		=> [ text,  'linebetcol', 	0, \&_prop_on ],
+    col_width 	=> [ text,  'colw',		0, \&_prop_twips ],
+    col_line		=> [ text,  'linebetcol',	0, \&_prop_on ],
 
-    page_brk		=> [ text,  'page', 	0, \&_prop_on ],
-    page_softbrk	=> [ text,  'softpage', 	0, \&_prop_on ],
+    page_brk		=> [ text,  'page', 		0, \&_prop_on ],
+    page_softbrk	=> [ text,  'softpage',	0, \&_prop_on ],
 
     # --- Forms....
     sec_unlock	=> [ text, 'sectunlocked', 	0, \&_prop_on ],
 
     # --- Footsnotes, endnotes stuff
-    sec_endnotes_here => [ text, 'endnhere', 	0, \&_prop_on ],
+    sec_endnotes_here => [ text, 'endnhere',	0, \&_prop_on ],
 
     # --- Alignment
     par_align		=> [ text, { left=>'ql', right=>'qr', center=>'qc', justify=>'qj' },  0, \&_prop_decode ],
     sec_vert_align	=> [ text, { top=>vertalt, bottom=>vertalb, center=>vertalc },  0, \&_prop_decode ],
 
     # --- Indentation
-    par_indent_first	=> [ text,  fi,   0, \&_prop_twips ],
-    par_indent_left	=> [ text,  li,   0, \&_prop_twips ],
-    par_indent_right	=> [ text,  ri,   0, \&_prop_twips ],
+    par_indent_first	=> [ text,  'fi', 		0, \&_prop_twips ],
+    par_indent_left	=> [ text,  'li', 		0, \&_prop_twips ],
+    par_indent_right	=> [ text,  'ri', 		0, \&_prop_twips ],
+    par_outline_level => [ text, 'outlinelevel', 0, \&_prop_raw ],
 
     # --- Style
-    style		=> [ text,  's',    0, \&_prop_style ],
+    style		=> [ text,  's', 		0, \&_prop_style ],
     style_default	=> [ text, { character=>'plain', paragraph=>'pard', section=>'secd' },  0, \&_prop_decode ],
 
-    # --- Tabs
-    tabs_default	=> [ docfmt,  deftab, 0, \&_prop_twips ],
-
     # --- Paragraph spacing
-    par_space_before	=> [ text,  'sb',     0,  \&_prop_twips ],
-    par_space_after	=> [ text,  'sa',     0,  \&_prop_twips  ],
-    par_space_lines	=> [ text,  'sl',     0,  \&_prop_raw  ],
-    par_space_lines_mult => [ text,  'slmult', 0,  \&_prop_raw  ],
+    par_space_before	=> [ text,  'sb', 		0,  \&_prop_twips ],
+    par_space_after	=> [ text,  'sa',		0,  \&_prop_twips  ],
+    par_space_lines	=> [ text,  'sl',		0,  \&_prop_raw  ],
+    par_space_lines_mult => [ text,  'slmult',	0,  \&_prop_raw  ],
 
     # --- Character formatting
-    bold		=> [ text,  'b',     0,  \&_prop_onoff ],
-    italic		=> [ text,  'i',     0,  \&_prop_onoff ],
-    caps		=> [ text,  'caps',  0,  \&_prop_onoff ],
-    caps_small	=> [ text,  'scaps', 0,  \&_prop_onoff ],
+    bold		=> [ text,  'b',		0,  \&_prop_onoff ],
+    italic		=> [ text,  'i',		0,  \&_prop_onoff ],
+    caps		=> [ text,  'caps',		0,  \&_prop_onoff ],
+    caps_small	=> [ text,  'scaps',		0,  \&_prop_onoff ],
     underline		=> [ text, { off=>'ul0', continuous=>'ul', dotted=>'uld', dash=>'uldash', 'dot-dash'=>'uldashd', 'dot-dot-dash'=>'uldashdd', double=>'ulb', none=>'ulnone', thick=>'ulth', word=>'ulw', wave=>'ulwave' },  0, \&_prop_decode ],
-    hidden		=> [ text,  'v',     0,  \&_prop_onoff ],
+    hidden		=> [ text,  'v',		0,  \&_prop_onoff ],
 
     # --- Colors
-    color_foreground => [ text,  cf,      0, \&_prop_raw ],
-    color_background => [ text,  cb,      0, \&_prop_raw ],
-    highlight		 => [ text, highlight, 0, \&_prop_raw ],
+    color_foreground => [ text,  'cf',		0, \&_prop_raw ],
+    color_background => [ text,  'cb',		0, \&_prop_raw ],
+    highlight		 => [ text, 'highlight',	0, \&_prop_raw ],
 
     # --- Fonts
-    font		=> [ text,  'f',     0, \&_prop_raw ],
-    font_size		=> [ text,  fs,      0, \&_prop_halfpts ],
-    font_scale	=> [ text,  'charscalex', 0,  \&_prop_raw  ],
-
-    # --- Document summary information
-    doc_title		=> [ info,    title,       1, \&_prop_pcdata ],
-    doc_author	=> [ info,    author,      1, \&_prop_pcdata ],
-    doc_subject	=> [ info,    subject,     1, \&_prop_pcdata ],
-    doc_manager	=> [ info,    manager,     1, \&_prop_pcdata ],
-    doc_company	=> [ info,    company,     1, \&_prop_pcdata ],
-    doc_operator	=> [ info,    operator,    1, \&_prop_pcdata ],
-    doc_category	=> [ info,    category,    1, \&_prop_pcdata ],
-    doc_keywords	=> [ info,    keywords,    1, \&_prop_pcdata ],
-    doc_summary	=> [ info,    doccomm,     1, \&_prop_pcdata ],
-    doc_comment	=> [ text,    '*\comment', 1, \&_prop_pcdata ],
-    doc_base_href	=> [ info,    hlinkbase,  1, \&_prop_pcdata ],
-    doc_version	=> [ info,    version,    0, \&_prop_raw  ],
-    doc_time_created	=> [ creatim ],
-
-    doc_from_text	=> [ docfmt,  fromtext,    0, \&_prop_on ],
-    doc_make_backup	=> [ docfmt,  makebackup,  0, \&_prop_on ],
-    doc_rtf_def	=> [ docfmt,  defformat,   0, \&_prop_on ],
+    font		=> [ text,  'f', 		0, \&_prop_raw ],
+    font_size		=> [ text,  'fs',		0, \&_prop_halfpts ],
+    font_scale	=> [ text,  'charscalex', 	0,  \&_prop_raw  ],
 
     # --- Page sizes, margins, etc.
-
-    doc_page_width	=> [ docfmt,  paperw,	0, \&_prop_twips ],
-    doc_page_height	=> [ docfmt,  paperh,	0, \&_prop_twips ],
-    doc_landscape	=> [ docfmt,  landscape,	0, \&_prop_on ],
-    doc_facing	=> [ docfmt,  facingp,	0, \&_prop_on ],
-    doc_margin_left	=> [ docfmt,  margl,		0,  \&_prop_twips ],
-    doc_margin_right	=> [ docfmt,  margr,		0, \&_prop_twips ],
-    doc_margin_top	=> [ docfmt,  margt,		0, \&_prop_twips ],
-    doc_margin_bottom => [ docfmt,  margb, 	0, \&_prop_twips ],
-    doc_margin_mirror=> [ docfmt,  margmirror, 	0, \&_prop_on ],
-    doc_gutter	=> [ docfmt,  gutter, 	0, \&_prop_twips ],
-
     sec_page_width	=> [ text,  pgwsxn,		0, \&_prop_twips ],
     sec_page_height	=> [ text,  pghsxn,		0, \&_prop_twips ],
     sec_landscape	=> [ text,  lndscpsxn,	0, \&_prop_on ],
@@ -234,17 +249,8 @@ sub _prop_on {
 
     # --- Hyphenation
     par_hyphen	=> [ text,  'hyphpar', 0,  \&_prop_onoff ],
-    doc_hyphen_auto	=> [ docfmt,  'hyphauto', 0,  \&_prop_onoff ],
-    doc_hyphen_caps	=> [ docfmt,  'hyphcaps', 0,  \&_prop_onoff ],
-
-    # --- Views
-    doc_view_scale	=> [ docfmt,  viewscale,   0, \&_prop_raw  ],
-    doc_view_zoom	=> [ docfmt, { none=>'viewzk0', 'full-page'=>'viewzk1',
-      'best-fit'=>'viewzk1' },  0, \&_prop_decode ],
-    doc_view_caption	=> [ docfmt,  windowcaption, 1, , \&_prop_pcdata ],
 
     # --- Widow/orphan controls
-    doc_widow_cntrl	=> [ docfmt,  widowctrl,   0, \&_prop_on ],
     par_widow_cntrl	=> [ text, { 0=>nowidctlpar, 1=>widctlpar },  0, \&_prop_decode ],
     par_intact	=> [ text,  keep,   0, \&_prop_on ],
     par_keep_next	=> [ text,  keepn,   0, \&_prop_on ],
@@ -260,26 +266,28 @@ sub _prop_on {
     doc_charset	=> [ Charset ]
 );
 
-
 sub set_properties
 {
     my $self = shift;
 
-    my $settings = shift,
+    my $table = shift,
+       $settings = shift,
        $destination = shift,
        $property, $value,
        $where, $what, $arg, $default;
 
     foreach $property (keys %{$settings}) {   
-        if (defined($PROPERTIES{$property}))
+        if (defined(${$table}{$property}))
         {
-            ($where, $what, $group, $default, $arg) = @{$PROPERTIES{$property}};
+            ($where, $what, $group, $default, $arg) = @{${$table}{$property}};
 
             if (defined($destination))
             {
                 carp "\`$property\' is a document property",
                     if ($where ne "text");
                 $where = $destination;
+            } else {
+                $where = $self->{$where}, if (defined($what));
             }
 
             if (defined($what))
@@ -309,25 +317,23 @@ sub initialize
 
     $self->{DefaultFont} = "";	# Default Font
 
-    $self->{fonttbl} 	= ();	# font tables
+    $self->{fonttbl} 	= [];	# font tables
     $self->{fontCnt}	= 0;		# count of fonts in table
+
+    $self->{colortbl} 	= [];	# color tables
+    $self->{colorCnt}	= 0;	# count of colors in table
 
     $self->{styleCnt}	= 0;	# count of styles defined
 
-    $self->{colortbl} 	= ();	# color tables
-    $self->{colorCnt}	= 0;	# count of colors in table
+    $self->{text} 		= [];	# root of Document Area
 
-    $self->{docfmt} 	= ();		# document format
-
-    $self->{info}		= [ "\\info" ];
+    $self->{info}		= $self->add_group();
     $self->{creatim} 	= time();
-
-    $self->{text} 		= ();	# ungrouped document text
 }
 
 sub import {
     my $self = shift;
-    $self->set_properties (@_);
+    $self->set_properties (\%DOCINFO, @_);
 }
 
 sub new
@@ -345,6 +351,9 @@ sub escape_text
 {
     local ($_) = shift;
     s/([\\\{\}])/\\$1/g;
+
+
+
 
     s/[\r]//g;
 
@@ -368,7 +377,7 @@ sub emit_group {
         if (ref($el) eq ARRAY) {
             $data .= emit_group(@$el);
         } else {
-            if (($el !~ m/^[\\\;\{\}]/) and (substr($data, length($data)-1) !~ m/[\}\s]/)) {
+            if (($el !~ m/^[\\\;\{\}]/) and (substr($data, length($data)-1) !~ m/[\}\{\s]/)) {
                 $data .= " ";
             }
             $data .= $el;
@@ -379,17 +388,6 @@ sub emit_group {
 
 }
 
-sub add_raw # add a raw value to a section
-{
-    my $self = shift;
-    my $section = shift;
-
-    foreach (@_) {
-        if (defined($_)) {
-            push @{$self->{$section}}, $_;
-        }
-    }
-}
 
 %FONTCLASSES = (
     swiss	=> swiss,
@@ -421,8 +419,8 @@ sub add_font
     my $class = $FONTCLASSES{${$attributes}{family}};
 
     unless ($self->{fontCnt}) {
-        $self->add_raw ("fonttbl", '\fonttbl');
-        $self->{DefaultFont} = "f".$self->{fontCnt};
+        $self->add_raw ($self->{fonttbl}, '\fonttbl');
+        $self->{DefaultFont} = "f".$self->{fontCnt};   # the first font defined is default
     }
 
     my @fattr = ('\f'.$self->{fontCnt}, '\f'.$class);
@@ -435,7 +433,7 @@ sub add_font
 
     if (defined(my $actual = ${$attributes}{name})) # non-tagged name (is this correct?)
     {
-        push @fattr, '\*\fname '. $actual;
+        push @fattr, ('\*\fname '. $actual);
     }
 
     push @fattr, $name;
@@ -447,9 +445,11 @@ sub add_font
         }
     }
 
-    $self->add_raw ("fonttbl", [ @fattr, ';'] );
+    $self->add_raw ($self->{fonttbl}, [ @fattr, ';'] );
 
     if (${$attributes}{default}) {
+        carp "Default font has already been defined.",
+            if ($self->{DefaultFont} ne "f0");
         $self->{DefaultFont} = $self->{fontCnt};
     }
 
@@ -497,18 +497,18 @@ sub add_style
         $code = "\\s0";
         $style = $code;
         $self->{$style} = [ ];
-        $self->{scrap} = [ ];
     } else {
         $code .= ++$self->{styleCnt};
         ($style = $code) =~ s/^\\\*//;
         $self->{$style} = [ $code ];
-        $self->{scrap} = [ ];
     }
 
-    $self->set_properties( $formatting, "scrap");  
-    $self->{styles}->{$style} = $self->{scrap};
+    my $aux = [];
 
-    push @{$self->{$style}}, @{$self->{scrap}};
+    $self->set_properties( \%PROPERTIES, $formatting, $aux);
+    $self->{styles}->{$style} = $aux;
+
+    push @{$self->{$style}}, @{$aux};
 
     my $sbasedon = ${$attributes}{basedon} || "none",
        $snext    = ${$attributes}{next}    || "self";
@@ -522,15 +522,16 @@ sub add_style
     push @{$self->{$style}}, ('\snext'.$snext), if (defined(${$attributes}{next}));
 
     push @{$self->{$style}}, ('\shidden'), if (${$attributes}{hidden});
+    push @{$self->{$style}}, ('\sautoupd'), if (${$attributes}{autoupdate});
 
     if ($type eq "character") {
         if (${$attributes}{additive}) {
             push @{$self->{$style}}, '\additive';
         } else {
-            unshift (@{$self->{scrap}}, ('\plain'));
+            unshift (@{$aux}, ('\plain'));
         }
     } else {
-        unshift (@{$self->{scrap}}, ('\pard', '\plain'));
+        unshift @{$aux}, ('\pard', '\plain');
     }
 
     $name =~ s/([\\\{\}])/\\$1/g;
@@ -539,60 +540,114 @@ sub add_style
     return $style;
 }
 
+%COLORNAMES = (
+    black	=> [0, 0, 0],
+    blue	=> [0, 0, 255],
+    aqua	=> [0, 255, 255],
+    lime	=> [0, 255, 0],
+    fuscia	=> [255, 0, 255],
+    red		=> [255, 0, 0],
+    yellow	=> [255, 255, 0],
+    white	=> [255, 255, 255],
+    navy	=> [0, 0, 128],
+    teal	=> [0, 128, 128],
+    green	=> [0, 128, 0],
+    purple => [128, 0, 128],
+    maroon	=> [128, 0, 0],
+    olive => [128, 128, 0],
+    gray	=> [128, 128, 128],
+    silver	=> [192, 192, 192],
+);
+
+sub parse_value
+{
+    local ($_) = shift;
+    $_ = $1 * 2.55, if (m/\-?(\d+(\.\d*)?)\s*\%$/);
+    return POSIX::ceil($_);
+}
+
 sub add_color
 {
     my $self = shift;
     my $attributes = shift;
     my ($red, $grn, $blu);
 
-    $red = POSIX::floor(${$attributes}{red});
-    $grn = POSIX::floor(${$attributes}{green});
-    $blu = POSIX::floor(${$attributes}{blue});
+    if (defined(${$attributes}{name})) {
+        my $name = ${$attributes}{name};
+        ($red, $grn, $blu) = @{$COLORNAMES{$name}};
+        carp "Unrecognized color name \`$name\'", 
+          unless (defined($COLORNAMES{$name}));
+    } else {
+        $red = parse_value(${$attributes}{red});
+        $grn = parse_value(${$attributes}{green});
+        $blu = parse_value(${$attributes}{blue});
+    }
 
     if (${$attributes}{gray}) {
         ($red, $grn, $blu) = (255, 255, 255), unless ($red+$grn+$blu);
         
-        $red = POSIX::ceil(${$attributes}{gray} / 100 * $red);
-        $grn = POSIX::ceil(${$attributes}{gray} / 100 * $grn);
-        $blu = POSIX::ceil(${$attributes}{gray} / 100 * $blu);
+        $red = POSIX::ceil(parse_value(${$attributes}{gray}) / 255 * $red);
+        $grn = POSIX::ceil(parse_value(${$attributes}{gray}) / 255 * $grn);
+        $blu = POSIX::ceil(parse_value(${$attributes}{gray}) / 255 * $blu);
     }
 
     unless ($self->{colorCnt}++) {
-        $self->add_raw ("colortbl", "\\colortbl;");
+        $self->add_raw ($self->{colortbl}, '\colortbl;');
     }
 
     foreach ($red, $grn, $blu) {
         carp "Invalid color value: $_.", if ($_<0) or ($_>255);
     }
 
-    $self->add_raw ("colortbl", "\\red$red\\green$grn\\blue$blu;" );
+    $self->add_raw ($self->{colortbl}, ("\\red$red", "\\green$grn", "\\blue$blu;") );
 
     return $self->{colorCnt};
 }
 
-sub text {
+sub add_group {
     my $self = shift;
+    my $section = shift || $self->{text};
+    my $group = [ ];
+    $self->add_raw ($section, $group);
+    return $group;
+}
+
+sub root {
+    my $self = shift;
+    return $self->{text};
+}
+
+sub add_raw # add a raw value to a section
+{
+    my $self = shift;
+    my $section = shift;
+
+    push @{$section}, @_;
+}
+
+sub add_text {
+    my $self = shift;
+    my $group = shift || $self->root();
     my $arg, $rarg;
 
     while ($arg = shift) {
         $rarg = ref($arg);
         if ($rarg eq HASH)
         {
-            $self->set_properties ($arg, "text");
+            $self->set_properties (\%PROPERTIES, $arg, $group);
         }
         elsif ($rarg eq ARRAY)
         {
-            $self->add_raw ("text", '{');
-            $self->text ( @{$arg} );
-            $self->add_raw ("text", '}');
+            my $subgroup = $self->add_group($group);
+            $self->add_text ($subgroup, @{$arg} );
         }
         elsif ($rarg eq SCALAR)
         {
-            $self->text (${$arg});
+            $self->add_text (${$arg});
         }
         else
         {
-            $self->add_raw ("text", escape_text($arg));
+            $self->add_raw ($group, escape_text($arg));
         }
     }
 
@@ -603,71 +658,76 @@ sub rtf
 {
     my $self = shift;
 
-    $self->{DOCUMENT} = ();
+    # --- Begin assembling the document with component groups
+    my $DOCUMENT = [];
 
+    # --- Create the RTF header
     $self->add_raw (
-        "DOCUMENT",
+        $DOCUMENT,
         "\\rtf",
         "\\".$self->{Charset}
     );
 
-    if ($self->{DefaultFont} ne "") {
-        $self->add_raw ("DOCUMENT", "\\deff".$self->{DefaultFont});
+    if ($self->{DefaultFont} ne "")
+    {
+        $self->add_raw ($DOCUMENT, '\deff'.$self->{DefaultFont});
+    }
+    else
+    {
+        carp "Waning: no default font has been specified!";
     }
 
-    if ($self->{creatim})
-    {
-        my ($ss, $mn, $hr, $dd, $mm, $yy) = localtime($self->{creatim});
-        $yy+=1900; $mm++;
-        $self->add_raw(
-            "info", [
-            "\\creatim",
-            "\\yr$yy",
-            "\\mo$mm",
-            "\\dy$dd",
-            "\\hr$hr",
-            "\\min$mn",
-            "\\sec$ss"
-        ] );
-    }
+    # 
+    my $styletable = [];
 
     $self->add_raw (
-        "DOCUMENT",
+        $DOCUMENT,
         $self->{fonttbl},
-        $self->{colortbl}
+        $self->{colortbl},
+        $styletable,
+        @{$self->{text}}
     );
 
+    # ----- Build style sheets and insert into the Style Table
     if (($self->{styleCnt}) or (defined($self->{"\\s0"}))) {
 
-        my @stylesheet = ( "\\stylesheet" );
+        push @{$styletable}, '\stylesheet';
         my $i = 0, $style;
         while ($i<=$self->{styleCnt}) {
             $style = "\\s".$i;
             $style = "\\ds".$i, unless (defined($self->{$style}));
             $style = "\\cs".$i, unless (defined($self->{$style}));
             if (defined($self->{$style})) {
-                push @stylesheet, [ @{$self->{$style}} ];
+                push @{$styletable}, [ @{$self->{$style}} ];
             }
             ++$i;
         }
-
-
-        $self->add_raw (
-        "DOCUMENT",
-         [ @stylesheet ]
-        );
-
     }
-    $self->{info} = undef, if (@{$self->{info}}==1);
 
-    $self->add_raw (
-        "DOCUMENT",
-        $self->{info},
-        @{$self->{docfmt}},
-        @{$self->{text}}
-    );
-        
-    return emit_group @{$self->{DOCUMENT}};
+    # ----- Insert creation time in Information Group
+    if ($self->{creatim})
+    {
+        my ($ss, $mn, $hr, $dd, $mm, $yy) = localtime($self->{creatim});
+        $yy+=1900; $mm++;
+        $self->add_raw(
+            $self->{info}, [ 
+            "\\creatim",
+            "\\yr$yy",
+            "\\mo$mm",
+            "\\dy$dd",
+            "\\hr$hr",
+            "\\min$mn",
+            "\\sec$ss" ]
+         );
+    };
+
+    if (@{$self->{info}}) {
+        unshift @{$self->{info}}, '\info';
+    } else {
+        $self->{info} = [];
+    }
+
+    return emit_group @{$DOCUMENT};
 }
 
 1;
@@ -717,20 +777,20 @@ Units::Type is part of the Units package.
          default=>1
        } );
     $fCourier = $rtf->add_font ("Courier",
-      { family=>monospace, 
+      { family=>monospace, pitch=>fixed, 
         alternates=>["Courier New", "American Typewriter"] 
       } );
 
     # Color definitions
 
     $cRed   = $rtf->add_color ( { red=>255 } );
-    $cGreen = $rtf->add_color ( { green=>255 } );
-    $cPurpl = $rtf->add_color ( { red=>255, blue=>255 } );
+    $cGreen = $rtf->add_color ( { green=>128 } );
+    $cCustm = $rtf->add_color ( { red=>0x66, blue=>0x33, green=>0x33 } );
 
-    $cBlack = $rtf->add_color ( { gray=>0 } );
-    $cWhite = $rtf->add_color ( { gray=>100 } );
+    $cBlack = $rtf->add_color ( { name=>'black' } );
+    $cWhite = $rtf->add_color ( { gray=>'100%' } );
 
-    $cDkBlue = $rtf->add_color ( { blue=>255, gray=>50 } );
+    $cNavy = $rtf->add_color ( { blue=>'100%', gray=>'50%' } );
 
     # style definitions
 
@@ -747,7 +807,7 @@ Units::Type is part of the Units package.
 
     # Mix any combo of properties and text...
 
-    $rtf->text(
+    $rtf->add_text( $rtf->root(),
        "Default text\n\n",
 
        { bold=>1, underline=>dash },
@@ -792,9 +852,20 @@ in place anyway. This "feature" may change in a future version.
 Unknown font or style properties will generally be ignored without warning.
 Inappropriate properties for a specific font or style are also ignored.
 
-Potentially invalid names for fonts and styles are ignored. (Don't use
-tabs, newlines, backslashes, brackets, or other control characters in
+Potentially invalid names for fonts and styles are ignored. (Hint: don't
+use tabs, newlines, backslashes, brackets, or other control characters in
 these.)
+
+Colors can be created by naming them, for instance, 
+
+    $cBlue = $rtf->add_color( { name => blue } );
+
+Note that the names and associated RGB codes come from the W3C's HTML4
+specification. Microsoft uses the same RGB color values for defaults in
+word, although they have different names. (The only conflict is with
+the definition of "green".)  Future versions will incorporate separate
+module which recognizes common names and returns appropriate RGB
+values.
 
 Fonts, Colors and Styles are referenced in text and style properties using
 the returned values when they are added, and I<not> by names associated
@@ -811,6 +882,17 @@ being added, or the next style that will be added, respectively.
 
 Properties are I<write-only> (global properties should be considered
 I<write-once> as well).
+
+Specifying properties in a particular order within a group does not
+guarantee that they will be emitted in that order. If order matters,
+specify them separetly. For instance,
+
+    $rtf->add_text($rtf->root, { style_default=>character, bold=>1 } );
+
+should be (if you want to ensure character styles are reset before setting
+bold text):
+
+    $rtf->add_text($rtf->root, { style_default=>character }, { bold=>1 } );
 
 =head2 Unimplemented Features
 
@@ -888,5 +970,3 @@ Robert Rothenberg <wlkngowl@unix.asb.com>
 Copyright (c) 1999 Robert Rothenberg. All rights reserved.
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
-
-=c
