@@ -5,5 +5,7 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'	=> 'RTF::Document',
+    'PREREQ_PM' => { 'Convert::Units::Type' => '0.33' },
     'VERSION_FROM' => 'Document.pm', # finds $VERSION
 );
+

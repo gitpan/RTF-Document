@@ -7,7 +7,7 @@ use vars qw(
     %DOCINFO %PROPERTIES
     %FONTCLASSES %FONTPITCH %COLORNAMES %STYLETYPES %NUMSTYLES
 );
-$VERSION = "0.63";
+$VERSION = "0.64";
 
 @ISA = qw(Exporter);
 @EXPORT = qw();
@@ -1188,7 +1188,7 @@ Robert Rothenberg <wlkngowl@unix.asb.com>
 
 =head1 LICENSE
 
-Copyright (c) 1999 Robert Rothenberg. All rights reserved.
+Copyright (c) 1999-2000 Robert Rothenberg. All rights reserved.
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

@@ -3,6 +3,9 @@ Revision history for Perl extension RTF::Document.
 Note that very important changes which affect compatability with previous
 versions are marked with an asterisk ('*').
 
+0.64  Thu Jan 13 22:05:00 2000
+       - fixed dependency issue in Makefile.PL
+
 0.63  N/A
        - fixed bug with { par_number => { after=>'text' } }
        - added more document and formatting properties

@@ -12,6 +12,12 @@ DESCRIPTION
     For a listing of properties, consult the %DOCINFO and
     %PROPERTIES hashes in the source code.
 
+
+CAVEAT
+
+    This is a minor "maintenance release" only. I am in the midst of
+    re-writing the interface altogether.
+
 REQUIRED MODULES
 
         Carp
@@ -27,17 +33,7 @@ KNOWN ISSUES
 
 CHANGES
 
-    * changed required Perl version to 5.005
-    - 8-bit characters are now escaped
-    - font names and style names are now escaped
-    - added rudimentary paragraph numbering
-    - fixed bug: moved charset propertiy to document area
-    - added more document and formatting properties
-    - styles now inherit from basedon property
-    - a warning is emitted when "next" attribute of style sheets is
-      specifed
-    - unknown font family now returns a warning, and family "nil" is
-      assumed
+    - fixed dependency issue in Makefile.PL
 
 AUTHOR
 
@@ -45,7 +41,8 @@ AUTHOR
 
 LICENSE
 
-    Copyright (c) 1999 Robert Rothenberg. All rights reserved. This
-    program is free software; you can redistribute it and/or modify
-    it under the same terms as Perl itself.
+    Copyright (c) 1999-2000 Robert Rothenberg. All rights reserved.
+    This program is free software; you can redistribute it and/or
+    modify it under the same terms as Perl itself.
+
 
