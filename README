@@ -1,0 +1,210 @@
+NAME
+
+    RTF::Document - Perl extension for generating Rich Text (RTF)
+    Files
+
+DESCRIPTION
+
+    RTF::Document is a module for generating Rich Text Format (RTF)
+    documents that can be used by most text converters and word
+    processors.
+
+    The interface is not yet documented, although the example below
+    will demonstrate how to use this module.
+
+    For a listing of properties, consult the %PROPERTIES hash in the
+    source code.
+
+REQUIRED MODULES
+
+        Carp
+        POSIX
+        Units::Type 0.32
+
+    Units::Type is part of the Units package.
+
+EXAMPLE
+
+        use RTF::Document;
+
+        # Document properties
+
+        $rtf = new RTF::Document(
+          {
+            doc_page_width => '8.5in',
+            doc_page_height => '11in'
+          }
+        );
+
+        # Font definitions
+
+        $fAvantGarde = $rtf->add_font ("AvantGarde", 
+           { family=>swiss,
+             default=>1
+           } );
+        $fCourier = $rtf->add_font ("Courier",
+          { family=>monospace, 
+            alternates=>["Courier New", "American Typewriter"] 
+          } );
+
+        # Color definitions
+
+        $cRed   = $rtf->add_color ( { red=>255 } );
+        $cGreen = $rtf->add_color ( { green=>255 } );
+        $cPurpl = $rtf->add_color ( { red=>255, blue=>255 } );
+
+        $cBlack = $rtf->add_color ( { gray=>0 } );
+        $cWhite = $rtf->add_color ( { gray=>100 } );
+
+        $cDkBlue = $rtf->add_color ( { blue=>255, gray=>50 } );
+
+        # style definitions
+
+        $sNormal = $rtf->add_style( "Normal",
+          { font=>$fAvantGarde, font_size=>'12pt',
+            color_foreground=>$cBlack },
+          { type=>paragraph, default=>1 }
+        );
+
+        $sGreen = $rtf->add_style( "Green",
+          { color_foreground=>$cGreen },
+          { type=>character, additive=>1 }
+        );
+
+        # Mix any combo of properties and text...
+
+        $rtf->text(
+           "Default text\n\n",
+
+           { bold=>1, underline=>dash },
+           "Bold/Underlined Text\n\n",
+
+           { font_size=>'20pt', font=>$fCourier,
+             color_foreground=>$cRed },
+           "Bigger, Red and Monospaced.\n\n",
+
+           { style_default=>paragraph, style_default=>character },
+
+           "This is ",
+           [ { style=>$sGreen }, "green" ],
+           " styled.\n\n"
+
+        );
+
+        open FILE, ">MyFile.rtf";
+        binmode FILE;
+        print FILE $rtf->rtf();
+        close FILE;
+
+KNOWN ISSUES
+
+    This module should be considered in the "alpha" stage. Use at
+    your own risk.
+
+    There are no default document or style properties produced by
+    this module, with the exception of the character set. If you
+    want to make sure that a specific font, color, or style is
+    available, you must specify it. (You may be able to rely on
+    default properties documented in the RTF specification, but you
+    do so at the risk that an RTF viewer will assume different
+    defaults.)
+
+    This module does not insert newlines anywhere in the text, even
+    though some RTF writers break lines before they exceed 225
+    characters. This may or may not be an issue with some reader
+    software.
+
+    Unknown text or document properties will return a warning.
+    Attempting to define a "global" document property (for example,
+    defining the paper size) within the text will also produce a
+    warning but the code will be emitted in place anyway. This
+    "feature" may change in a future version.
+
+    Unknown font or style properties will generally be ignored
+    without warning. Inappropriate properties for a specific font or
+    style are also ignored.
+
+    Potentially invalid names for fonts and styles are ignored.
+    (Don't use tabs, newlines, backslashes, brackets, or other
+    control characters in these.)
+
+    Fonts, Colors and Styles are referenced in text and style
+    properties using the returned values when they are added, and
+    *not* by names associated with them. This is intentional, since
+    it makes the interface more object-oriented.
+
+    Once a Font, Color or Style is added, it cannot be changed. No
+    checking for redundant entries is done.
+
+    Generally, it is not possible to reference a not-yet-created
+    Style with the next or basedon attributes. However, you can use
+    the constances "last", "self" or "next" to reference the last
+    style added, the current style being added, or the next style
+    that will be added, respectively.
+
+    Properties are *write-only* (global properties should be
+    considered *write-once* as well).
+
+  Unimplemented Features
+
+    A rather large number of features and control words are not
+    handled in this version. Among the major features:
+
+    * Annotations and Comments
+    * Bookmarks
+    * Bullets and Line Numbering
+    * Character Sets and Internationalization
+
+        Non-"ANSI" character sets (i.e., Macintosh) and Unicode
+        character sets are not supported (at least not
+        intentionally). There is no support for Asian character sets
+        in this version of the module.
+
+        Unicode character escapes are not implemented.
+
+        Language codes (defining a default language, or a language
+        for a group of characters) are not implemented.
+
+        Bi-directional and text-flow controls are not implemented.
+
+    * Embedded Images and OLE Objects
+    * File Tables
+    * Footnotes and Endnotes
+    * Forms
+    * Headers and Footers
+    * Hyphenation Control
+    * Lists and List Tables
+    * Page Numbering
+
+        Minimal definition, untested.
+
+    * Printer Bin Controls
+    * Revision Tables
+    * Special Characters and Document Variables
+
+        Most special characters not not implemented, with the
+        exception of tabs. Double newline characters are converted
+        to a new paragraph control, and single newlines are
+        converted to a new line control.
+
+    * Tabs
+    * Tables and Frames
+
+SEE ALSO
+
+    Microsoft Technical Support and Application Note, "Rich Text
+    Format (RTF) Specification and Sample Reader Program", Version
+    1.5.
+
+    *Units::Type*.
+
+AUTHOR
+
+    Robert Rothenberg <wlkngowl@unix.asb.com>
+
+LICENSE
+
+    Copyright (c) 1999 Robert Rothenberg. All rights reserved. This
+    program is free software; you can redistribute it and/or modify
+    it under the same terms as Perl itself.
+
