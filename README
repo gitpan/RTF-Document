@@ -9,8 +9,8 @@ DESCRIPTION
     documents that can be used by most text converters and word
     processors.
 
-    The interface is not yet documented, although the example below
-    will demonstrate how to use this module.
+    For a listing of properties, consult the %DOCINFO and
+    %PROPERTIES hashes in the source code.
 
 REQUIRED MODULES
 
@@ -18,35 +18,26 @@ REQUIRED MODULES
         POSIX
         Convert::Units::Type 0.33
 
-CHANGES IN THIS RELEASE
-
-    * Units::Type has been renamed to Convert::Units::Type
-    - Information Group is built after initializing document format:
-      this allows multiple calls to rtf() method
-    - Style Sheet Table is built as new styles are added
-    - further rewriting, so that all tables are groups within the
-      root document: THIS MIGHT INTRODUCE BUGS WITH SOME VIEWERS,
-      though technically it should be no problem according to the
-      RTF specification
-    - added ability to define a default color (although most RTF
-      readers will not use it)
-    - added splice_raw() method for inserting or changing controls
-      and text
-    - changed wording or warnings; other minor changes in code,
-      including cleaning up a few warnings
-    - code in escape_text fixed so that trailing spaces not added to
-      escapes prior to other controls or end of line
-    - split_text() added as a wrapper for escape_text() - this is
-      to separate the text from controls and make parsing easier
-    - PCDATA (string) arguments in properties are now escaped
-    - Added SYNOPSIS section to POD
-
 KNOWN ISSUES
 
     This module should be considered in the "alpha" stage. Use at
     your own risk.
 
-    Please see the POD in Document.pm for more information.
+    See the POD for more details.
+
+CHANGES
+
+    * changed required Perl version to 5.005
+    - 8-bit characters are now escaped
+    - font names and style names are now escaped
+    - added rudimentary paragraph numbering
+    - fixed bug: moved charset propertiy to document area
+    - added more document and formatting properties
+    - styles now inherit from basedon property
+    - a warning is emitted when "next" attribute of style sheets is
+      specifed
+    - unknown font family now returns a warning, and family "nil" is
+      assumed
 
 AUTHOR
 

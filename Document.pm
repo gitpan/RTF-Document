@@ -1,15 +1,13 @@
 package RTF::Document;
-require 5.004;
+require 5.005;
 require Exporter;
 
 use vars qw(
     $VERSION
     %DOCINFO %PROPERTIES
-    %FONTCLASSES %FONTPITCH
-    %COLORNAMES
-    %STYLETYPES
+    %FONTCLASSES %FONTPITCH %COLORNAMES %STYLETYPES %NUMSTYLES
 );
-$VERSION = "0.61";
+$VERSION = "0.62";
 
 @ISA = qw(Exporter);
 @EXPORT = qw();
@@ -19,11 +17,101 @@ use Carp;
 use POSIX;
 use Convert::Units::Type 0.33;
 
+%NUMSTYLES = (
+    '1' => '\pndec',
+    'a' => '\pnlcltr',
+    'i' => '\pnlcrm',
+    'A' => '\pnucltr',
+    'I' => '\pnucrm',
+    '1st' => '\pnord'
+);
+
+sub _prop_list
+{
+    my ($self, $code, $properties) = @_;
+    my ($result, $level, $style);
+
+    if ($properties eq "off") {
+        return '\pard';
+    }
+
+    $result = $self->new_group( '\*', '\pn' );
+
+    ${$properties}{level} = ${$properties}{style}, if (${$properties}{style} eq "bullet");
+
+    if (${$properties}{level}) {
+        $level = ${$properties}{level};
+        $level = "blt", if ($level eq "bullet");
+        if ((($level<1) or ($level>11)) and ($level ne "blt"))
+        {
+            carp "List level \`$level\' is out of range";
+            $level = 'body';
+        }
+    } else {
+        $level = 'body';
+    }
+
+    $self->add_raw ($result, '\pnlvl'.$level);
+
+    if ($level eq "body")  {
+        $style = $NUMSTYLES{${$properties}{style}} || '\pndec';
+        $self->add_raw ($result, $style);
+    }
+
+    if (defined(${$properties}{font}))
+    {
+       $self->add_raw ($result, '\pnf'.${$properties}{font});
+    }
+
+    if (defined(${$properties}{color}))
+    {
+       $self->add_raw ($result, '\pncf'.${$properties}{color});
+    }
+
+    if (defined(${$properties}{start}))
+    {
+       $self->add_raw ($result, '\pnstart'.${$properties}{start});
+    }
+
+
+    if (defined(${$properties}{indent}))
+    {
+       $self->add_raw ($result, '\pnindent'.POSIX::floor(
+         Convert::Units::Type::convert(${$properties}{indent}, "twips")
+       ));
+    }
+
+    if (defined(${$properties}{space}))
+    {
+       $self->add_raw ($result, '\pnsp'.POSIX::floor(
+         Convert::Units::Type::convert(${$properties}{space}, "twips")
+       ));
+    }
+
+    if (${$properties}{hang})
+    {
+       $self->add_raw ($result, '\pnhang');
+    }
+
+    if (defined(${$properties}{before}))
+    {
+       my $group = $self->add_group($result);
+       $self->add_raw ($group, '\pntxtb '.escape_simple(${$properties}{before}) );
+    }
+
+    if (defined(${$properties}{after}))
+    {
+       my $group = $self->add_group($result);
+       $self->add_raw ($group, '\pntxtb '.escape_simple(${$properties}{after}) );
+    }
+
+    return ($result);
+}
+
 # $arg is a key to RTF control in hash value
 sub _prop_decode
 {
     my ($self, $hash, $arg) = @_;
-
     my $result = ${$hash}{$arg};
 
     unless (defined($result)) {
@@ -35,16 +123,33 @@ sub _prop_decode
 
 sub _prop_style {
     my ($self, $code, $arg) = @_;
-    my @style_formatting = ();
     $code = decode_stylename($arg, '\s222');
+    my $formatting, $style_properties;
+
     if (defined($code)) {
-        @style_formatting = @{$self->{styles}->{$code}};
-        unless (defined(@style_formatting)) {
+        $formatting = $self->new_group();
+        %{$style_properties} = %{$self->{styles}->{$code}};
+
+        if (${$style_properties}{secd}) {
+            $self->add_raw($formatting, '\secd');
+            delete ${$style_properties}{secd};
+        }
+        if (${$style_properties}{pard}) {
+            $self->add_raw($formatting, '\pard');
+            delete ${$style_properties}{pard};
+        }
+        if (${$style_properties}{plain}) {
+            $self->add_raw($formatting, '\plain');
+            delete ${$style_properties}{plain};
+        }
+
+        $self->set_properties( \%PROPERTIES, $style_properties, $formatting);
+        unless (@{$formatting}) {
             carp "Style \`$arg\' is not defined";
             $code = decode_stylename("none");
         }
     }
-    return ($code, @style_formatting);
+    return ($code, @{$formatting} );
 }
 
 # $arg is a unit of type (points, picas, inches) converted to twips
@@ -63,7 +168,7 @@ sub _prop_halfpts {
 sub _prop_pcdata {
     my ($self, $code, $arg) = @_;
     $arg =~ s/([\\\{\}])/\\$1/g;
-    return ("\\".$code, split_text($arg));
+    return ("\\".$code, escape_simple($arg));
 }
 
 # $arg is a raw value
@@ -144,14 +249,23 @@ sub _prop_on {
     doc_gutter	=> [ text,  gutter, 	0, \&_prop_twips ],
 
     # --- Hyphenation
-    doc_hyphen_auto	=> [ text,  'hyphauto', 0,  \&_prop_onoff ],
-    doc_hyphen_caps	=> [ text,  'hyphcaps', 0,  \&_prop_onoff ],
+    doc_hyphen_auto	=> [ 'text', 'hyphauto', 0,  \&_prop_onoff ],
+    doc_hyphen_caps	=> [ 'text', 'hyphcaps', 0,  \&_prop_onoff ],
+    doc_hyphen_lines	=> [ 'text', 'hyphconsec', 0,  \&_prop_onoff ],
+    doc_hyphen_zone	=> [ 'text', 'hyphhotz', 0,  \&_prop_twips ],
 
     # --- Views
     doc_view_scale	=> [ text,  viewscale,   0, \&_prop_raw  ],
     doc_view_zoom	=> [ text, { none=>'viewzk0', 'full-page'=>'viewzk1',
       'best-fit'=>'viewzk1' },  0, \&_prop_decode ],
-    doc_view_caption	=> [ text,  windowcaption, 1, , \&_prop_pcdata ],
+    doc_view_caption	=> [ text, windowcaption, 1, , \&_prop_pcdata ],
+    'doc_view_mode'	=> [ 'text', { 'none'=>'viewkind0', 'layout'=>'viewkind1',
+      'outline'=>'viewkind2', 'master'=>'viewkind3',
+
+      'normal'=>'viewkind4', 'online'=>'viewkind5'}, 0, \&_prop_decode ],
+
+    # --- Character set
+    'doc_charset'		=> [ 'charset' ],
 
     # --- Widow/orphan controls
     doc_widow_cntrl	=> [ text,  widowctrl,   0, \&_prop_on ],
@@ -201,6 +315,9 @@ sub _prop_on {
     'par_indent_left'	=> [ 'text', 'li', 	0, \&_prop_twips ],
     'par_indent_right'	=> [ 'text', 'ri', 	0, \&_prop_twips ],
     'par_outline_level'	=> [ 'text', 'outlinelevel', 0, \&_prop_raw ],
+
+    'par_number_text'	=> [ 'text', 'pntext', 1, \&_prop_pcdata ],
+    'par_number'		=> [ 'text', 'pn', 0, \&_prop_list ],
 
     # --- Style
     'style'		=> [ 'text', 's', 		0, \&_prop_style ],
@@ -264,8 +381,7 @@ sub _prop_on {
     'pg_num_cont'		=> [ 'text', 'pgncont',	0, \&_prop_on ],
     'pg_num_restart' 	=> [ 'text', 'pgnrestart',	0, \&_prop_on ],
 
-    # --- Character set
-    'doc_charset'		=> [ 'charset' ]
+    'sec_title_pg' 		=> [ 'text', 'titlepg', 	0, \&_prop_on ]
 );
 
 sub set_properties
@@ -276,6 +392,8 @@ sub set_properties
        $settings = shift,
        $destination = shift;
     my ($property, $value, $where, $what, $arg, $default);
+
+    local ($_);
 
     foreach $property (keys %{$settings}) {   
         if (defined(${$table}{$property}))
@@ -298,8 +416,12 @@ sub set_properties
 
                 if (@controls)
                 {
-                    $self->add_raw ($where, @controls ), if (!$group);
-                    $self->add_raw ($where, [ @controls ] ), if ($group);
+                    if ($group) {
+                        my $subgroup = $self->add_group($where);
+                        $self->add_raw ($subroup, @controls );
+                    } else {
+                        $self->add_raw ($where, @controls );
+                    }
                 }                
             } else {
                 $self->{$where} = ${$settings}{$property};
@@ -317,7 +439,7 @@ sub initialize
     $self->{charset} 	= "ansi";	# Character Set
 
     # --- Document Header
-    $self->{DOCUMENT}	= $self->new_group( '\rtf' );
+    $self->{DOCUMENT}	= $self->new_group( '\rtf', $self->{charset} );
 
     $self->{fonttbl}		= $self->add_group($self->{DOCUMENT});
     $self->{fontCnt}		= 0;
@@ -339,7 +461,7 @@ sub import {
     my $self = shift;
     $self->set_properties (\%DOCINFO, @_);
 
-    $self->splice_raw ($self->{DOCUMENT}, 1, 0, "\\".$self->{charset});
+    $self->splice_raw ($self->{DOCUMENT}, 1, 1, "\\".$self->{charset});
 
     # --- Insert creation time in Information Group
     if ($self->{creatim})
@@ -352,6 +474,7 @@ sub import {
         $self->add_raw( $creatim,  '\creatim',
             "\\yr$yy", "\\mo$mm", "\\dy$dd", "\\hr$hr", "\\min$mn", "\\sec$ss"
         );
+        $self->{creatim} = 0;
     };
 }
 
@@ -421,6 +544,11 @@ sub add_font
 
     my $class = $FONTCLASSES{${$attributes}{family}};
 
+    unless (defined($class)) {
+        $class = "nil";
+        carp "Unknown font family \`${$attributes}{family}\'";
+    }
+
     unless ($self->{fontCnt}) {
         $self->add_raw ($self->{fonttbl}, '\fonttbl');
         $self->splice_raw ($self->{DOCUMENT}, 2, 0, "\\deff".$self->{fontCnt});
@@ -439,15 +567,15 @@ sub add_font
 
     if (defined(my $actual = ${$attributes}{name})) # non-tagged name (is this correct?)
     {
-        $self->add_raw ($fattr, ['\*\fname '.$actual ] );
+        $self->add_raw ($fattr, ['\*\fname '.escape_simple($actual) ] );
     }
 
-    $self->add_raw ($fattr, $name );
+    $self->add_raw ($fattr, escape_simple($name) );
 
     my @alternates = @{${$attributes}{alternates}};
     if (@alternates) {
         while ($_ = shift @alternates) {
-            $self->add_raw ($fattr, [ '\*\falt '.$_ ] );
+            $self->add_raw ($fattr, [ '\*\falt '.escape_simple($_) ] );
         }
     }
 
@@ -505,25 +633,34 @@ sub add_style
         carp "Default style\'s type must be \`paragraph\'", if ($type ne "paragraph");       
         $code = "\\s0";
         $style = $code;
-        $self->{$style} = [ ];
+        $self->{$style} = $self->new_group();;
     } else {
         $code .= ++$self->{styleCnt};
         ($style = $code) =~ s/^\\\*//;
-        $self->{$style} = [ $code ];
+        $self->{$style} = $self->new_group( $code );
     }
 
-    my $aux = [];
+    $self->set_properties( \%PROPERTIES, $formatting, $self->{$style} );
 
-    $self->set_properties( \%PROPERTIES, $formatting, $aux);
-    $self->{styles}->{$style} = $aux;
-
-    push @{$self->{$style}}, @{$aux};
+    carp "Warning: next attribute for style sheets is not used",
+        if (defined(${$attributes}{next}));
 
     my $sbasedon = ${$attributes}{basedon} || "none",
        $snext    = ${$attributes}{next}    || "self";
 
     $sbasedon = decode_stylename($sbasedon, $style);
     $snext    = decode_stylename($snext, $style);
+
+    # --- Inherit stylesheet from "basedon"
+    if ($sbasedon ne '\s222') {
+         %{$self->{styles}->{$style}} = %{$self->{styles}->{$sbasedon}};
+    } else {
+        $self->{styles}->{$style} = {};
+    }
+
+    foreach my $aux (keys %{$formatting}) {
+        ${$self->{styles}->{$style}}{$aux} = ${$formatting}{$aux};
+    }
 
     $sbasedon =~ s/^\\[dc]?s//; $snext =~ s/^\\[dc]?s//;
 
@@ -537,13 +674,17 @@ sub add_style
         if (${$attributes}{additive}) {
             push @{$self->{$style}}, '\additive';
         } else {
-            unshift (@{$aux}, ('\plain'));
+            ${$self->{styles}->{$style}}{plain} = 1;
         }
     } else {
-        unshift @{$aux}, ('\pard', '\plain');
+         ${$self->{styles}->{$style}}{plain} = 1;
+         ${$self->{styles}->{$style}}{pard}  = 1;
+         if ($type eq "section") {
+             ${$self->{styles}->{$style}}{secd}  = 1;
+         }
     }
 
-    push @{$self->{$style}}, $name.";";
+    push @{$self->{$style}}, escape_simple($name).";";
 
     if (${$attributes}{default}) {
         $self->splice_raw($self->{styletbl}, 1, 0, $self->{$style});
@@ -661,16 +802,25 @@ sub add_raw # add a raw value to a section
     my $self = shift;
     my $section = shift;
 
-    push @{$section}, @_;
+    push @{$section}, @_ ;
 }
 
-sub escape_text # escapes special characters
-{
+
+# --- Escape brackets, backslashes and 8-bit characters
+sub escape_simple {
     local ($_) = shift;
-    s/([\\\{\}])/\\$1/g;		# escape brackets and backslashes
-    s/\r/\\par/g;			# carriage returns = new paragraphs
-    s/\n/\\line/g;			# escape newlines
-    s/\t/\\tab/g;			# escape tabs
+    s/([\\\{\}])/\\$1/g;	
+    s/([\x80-\xff])/sprintf("\\\'\%02x", ord($1))/eg;
+    return $_;
+}
+
+# --- Escapes special characters to common RTF controls
+sub escape_text
+{
+    local ($_) = escape_simple(shift);
+    s/\r/\\par/g;		# carriage returns = new paragraphs
+    s/\n/\\line/g;		# escape newlines
+    s/\t/\\tab/g;		# escape tabs
     return $_;
 }
 
@@ -740,9 +890,6 @@ RTF::Document - Perl extension for generating Rich Text (RTF) Files
 
 RTF::Document is a module for generating Rich Text Format (RTF) documents
 that can be used by most text converters and word processors.
-
-The interface is not yet documented, although the example below will
-demonstrate how to use this module.
 
 For a listing of properties, consult the %DOCINFO and %PROPERTIES hashes
 in the source code.
@@ -863,30 +1010,17 @@ This module should be considered in the "alpha" stage. Use at your own risk.
 
 There are no default document or style properties produced by this module,
 with the exception of the character set. If you want to make sure that a
-specific font, color, or style is available, you must specify it. (You
-may be able to rely on default properties documented in the RTF specification,
-but you do so at the risk that an RTF viewer will assume different defaults.)
+I<specific> font, color, or style is used, you must specify it. Otherwise
+you rely on the assumptions of whatever RTF reader someone is using.
 
 This module does not insert newlines anywhere in the text, even though some
 RTF writers break lines before they exceed 225 characters.  This may or may
 not be an issue with some reader software.
 
-Unknown text or document properties will return a warning.
-
 Unknown font or style properties will generally be ignored without warning.
-Inappropriate properties for a specific font or style are also ignored.
-
-Potentially invalid names for fonts and styles are ignored. (Hint: don't
-use tabs, newlines, backslashes, brackets, or other control characters in
-these.)
 
 This module supports some newer RTF controls (used in Word 95/Word 97) that
-may not be understood by older RTF readers.
-
-Fonts, Colors and Styles are referenced in text and style properties using
-the returned values when they are added, and I<not> by names associated
-with them.  This is intentional, since it makes the interface more
-object-oriented.
+may are not understood by older RTF readers.
 
 Once a Font, Color or Style is added, it cannot be changed. No checking
 for redundant entries is done.
@@ -924,7 +1058,11 @@ version. Among the major features:
 
 =item Bookmarks
 
-=item Bullets and Line Numbering
+=item Bullets and Paragraph Numbering
+
+Some support has been added. The backwards-compatability controls for numbered
+paragraphs used by older readers has not been added because it is not properly
+handled by newer readers.
 
 =item Character Sets and Internationalization
 
@@ -951,10 +1089,12 @@ Bi-directional and text-flow controls are not implemented.
 
 =item Hyphenation Control
 
+Some minimal controls have been added.
+
 =item Lists and List Tables
 
 Not implemented: List Tables are really a kind of style sheet for lists.
-Priority will be given to support generic bullets and numbering.
+Priority will be given to support generic bullets and paragraph numbering.
 
 =item Page Numbering
 
@@ -994,7 +1134,6 @@ This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 =cut
-
 
 
 

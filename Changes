@@ -3,6 +3,19 @@ Revision history for Perl extension RTF::Document.
 Note that very important changes which affect compatability with previous
 versions are marked with an asterisk ('*').
 
+0.62  Mon Sep 27 08:00:00 1999
+       * changed required Perl version to 5.005
+       - 8-bit characters are now escaped
+       - font names and style names are now escaped
+       - added rudimentary paragraph numbering
+       - fixed bug: moved charset propertiy to document area
+       - added more document and formatting properties
+       - styles now inherit from basedon property
+       - a warning is emitted when "next" attribute of style sheets is
+         specifed
+       - unknown font family now returns a warning, and family "nil" is
+         assumed
+
 0.61  Wed Sep 22 03:24:02 1999
        * Units::Type has been renamed to Convert::Units::Type
        - Information Group is built after initializing document format:
